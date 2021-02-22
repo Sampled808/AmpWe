@@ -1,0 +1,8 @@
+archive/
+notes*
+__pycache__/
+utils/
+server/__pycache__/
+server/todo*
+server/spam
+user/__pycache__/
