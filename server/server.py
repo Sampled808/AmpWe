@@ -3,14 +3,14 @@
 import socket
 from session import Session
 from user import User
-from pickle import loads, dumps
 
-from SignalConsts import SignalCosnts as SIG
+from SignalConsts import SignalConsts as SIG
+import signal
 #import threading
 
 """
 Sessions manager algorytm:
-store sessions in a dict of "host":"thread"
+store sessions in a dict of "host":"thread/host"
 """
 
 """
@@ -21,89 +21,122 @@ otherwise it will link it to existing session.
 def newConnection(serverSocket, users):
     try:
         conn, addr = serverSocket.accept()
-        conn.setblocking(0) 
-        try:
-            name = loads(conn.recv(1024))
-        except Exception as e:
-            print(e)
-        print(name + " tries to connect from" + str(addr)) # only for debugging
-        
+        conn.setblocking(0)
+        return conn
 
-        if name not in users: # make sure there is no other user with that name
-            return User(name, conn)
-        else:
-            conn.send(dumps(SIG.USERNAME_TAKEN))
-            conn.close()
-            print("name", name, "already taken") # Debug
-
-
-    
     except IOError as e:
         return None
+    
+    print(addr)
 
+def recieve(conn, length): # add try except?, make it handle headers/signals?
+    p = length if length != 1 else ""
+    print(p, end="")
+    sig = conn.recv(length).decode('UTF-8')
+    if sig.isdigit(): 
+    
+        print("recieved num", sig)
+        return int(sig) # maybe call handleSignal() from here?
+
+    elif not sig:
+        return
+    else:
+
+        print("recieved str", sig)
+        return sig
+
+def tryLogin(conn, users):
+    name = ""
+    try:
+        mlen = recieve(conn, 1)
+        if not mlen:
+            return
+        elif type(mlen) is not int:
+            conn.sendSignal(SIG.MSGLEN_EXPECTED) # add handler on user end
+            conn.close()
+        
+        elif int(mlen) < 3: # name length between 3 and 9
+            print("bad length") # debug
+            conn.sendSignal(SIG.BAD_NAME_LENGTH)
+        
+        else: 
+            print("listening for name")
+            name = recieve(conn, mlen) 
+
+    except Exception as e:
+        print(e)
+    if not name:
+        return
+    elif name not in users: # make sure there is no other user with that name
+        print(name + " connected") # only for debugging
+        user = User(name, conn)
+        user.sendSignal(SIG.OK)
+        return user
+    else:
+        conn.send(str(SIG.USERNAME_TAKEN).encode())
+        conn.close()
+        print("name", name, "already taken") # Debug
+        return
 
 """
 handles signals from users.
 signal numbers are in SignalConsts.py
 """
+
+signals = {
+        SIG.DISCONNECT : signal.disconnect,
+        SIG.SESSION_START : signal.sessionStart
+}
+
 def handleSignal(user, signal, users, sessions):
-    
-    if signal == SIG.DISCONNECT:
-        n = user # Debug
-        try:
-            users.remove(user) # remove from users list. can raise ValuError if not in list (shouldn't happen)
-
-            if user.session == user.name: # if the user is a host of a session
-                sessions.remove(user) # remove it from sessions
-            
-            user.disconnect(SIG.OK)
-        
-        except Exception as e: # make less general
-            print(e, user)
-            try:
-                del user
-                print("user deleted")
-            except:
-                print("error")
-            
-        print(n, "disconnected") # Debug
-        return
-
+    signals[signal](user, users, sessions)
 
 
 
         
 
-def main():
+def main(serverSocket):
     # main server socket
     IP = '127.0.0.1'
     PORT = 8888
 
 
     # init main socket
-    serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     serverSocket.setblocking(0)
     serverSocket.bind((IP, PORT))
 
     # loop over main socket to manage sessions and users
-    sessions = [] 
-    users = [] 
+    # maybe should be dicts
+    sessions = {}
+    users = {}
+    anon = [] # new connections not yet signed in
 
     serverSocket.listen(5)
     while True:
         # accept new connections
         new = newConnection(serverSocket, users)
         if new:
-            users.append(new)
-            print(users) # Debug
+            anon.append(new)
 
 
 
-        for user in users:
+        for name, user in users.items():
             signal = user.getSignal()
             if signal:
                 handleSignal(user, signal, users, sessions)
 
+        for u in anon:
+            u = tryLogin(u, users)
+            if u:
+                users[u.name]=u
+
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        serverSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        main(serverSocket)
+    except  Exception as e: # KeyboardInterrupt
+        
+        serverSocket.close()
+        raise e

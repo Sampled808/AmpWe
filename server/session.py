@@ -9,16 +9,16 @@ Basic Algorithm:
 '''
 
 class Session():
-    def __init__(self, name, host):
+    def __init__(self, host):
         self.host = host # holds the host (User obj) of the session
         self.users = [] # holds the users in the session
-        self.name = name 
         # maybe add a thread as property
 
 
-    # adds socket to session
+    # adds user to session
     def addUser(self, user):
-       self.users.append(user) 
+       self.users.append(user)
+       user.session = self
 
     # disconnect user
     def removeUser(self, user):
@@ -31,3 +31,6 @@ class Session():
         pass
 
     
+
+
+

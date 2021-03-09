@@ -1,6 +1,5 @@
 import socket
-from pickle import loads, dumps
-from SignalConsts import SignalCosnts as SIG
+from SignalConsts import SignalConsts as SIG
 
 
 
@@ -24,15 +23,19 @@ class User():
 
     def getSignal(self):
         try:
-            return loads(self.socket.recv(1024))
-        except: # ignore if no signal to get
+            return int(self.socket.recv(3).decode('UTF-8'))
+        except IOError: # ignore if no signal to get
             pass
+        except ValueError:
+            pass # handle case of signal being non-numeral
+        except UnicodeDecodeError:
+            pass # handle message not being utf-8
 
     def sendSignal(self, signal): 
         try:
-            self.socket.send(dumps(signal))
+            self.socket.send(str(signal).encode())
         except IOError:
-            self.disconnect(self, SIG.CONNECTION_BROKE)
+            self.disconnect(self, SIG.CONNECTION_BROKE) # INFINITE LOOP ALERT
             return SIG.CONNECTION_BROKE
 
     def disconnect(self, reason):
@@ -54,3 +57,9 @@ class User():
             del self # delete the user object
         except:
             pass
+
+    def joinSession(self, session):
+        # maybe add checks to see if user already in session
+        # after adding the database check that the user can join that session (in friends list and session isnt invite only etc)
+        self.session = session
+        self.sendSignal(SIG.OK)
