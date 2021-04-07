@@ -25,6 +25,13 @@ class ConnectionProtocol(asyncio.Protocol):
         self.current = None # None if not signed in (aka in anon), self if signed in but not in session, Session (object) if in session.
 
 
+        self.handle_signal = { # dictionary matching signals the user can send to functions that handle them.
+            SIG.MESSAGE : self.handle_message,
+            SIG.LOGIN : self.log_in,
+            SIG.SESSION_START : self.session_start,
+            SIG.SESSION_CLOSE : self.session_close,
+            SIG.SESSION_LEAVE : self.session_leave
+        }
 
 
     def connection_made(self, transport):
@@ -46,13 +53,12 @@ class ConnectionProtocol(asyncio.Protocol):
         signal = int(data[:3])
         msg = data[3:]
 
-
-        handle_signal = { # dictionary matching signals the user can send to functions that handle them.
-            SIG.MESSAGE : self.handle_message,
-            SIG.LOGIN : self.log_in
-        }
-        handle_signal[signal](msg)
-
+        # If an unknown signal is sent: not using oficial client, disconnect.data
+        # Could be a problem when updating the server and a user uses out of date client, so client version should be confirmed as latest before login.
+        if signal in self.handle_signal:
+            self.handle_signal[signal](msg)
+        else:
+            self.transport.close()
 
     def connection_lost(self, exc):
         """
@@ -78,6 +84,28 @@ class ConnectionProtocol(asyncio.Protocol):
         else:
             clients[username] = self
             print(username, "connected")
+
+    def session_start(self):
+        """
+        if a user is logged in but not in a session, create a session with him as host and put him in it.
+        optional: notify friends list/allow host to invite.
+        """
+        if self.current == self:
+            self.current = Session(self)
+
+    def session_close(self):
+        """
+        Closes a session if self is its host, sends signal to users and removes them and the host, then deletes session object.
+        """
+        if isinstance(self.current, Session) and self.current.host is self:
+            self.current.close()
+            self.current = self
+
+    def session_leave(self):
+        if isinstance(self.current, Session):
+            self.current.removeUser(self)
+            self.current = self
+
 
     def handle_message(self, msg):
         """

@@ -14,6 +14,7 @@ class SignalConsts:
     # server responses start at 200
     OK = 200
 
+    SESSION_LEFT = 204
 
     # client errors start at 400
     USERNAME_TAKEN = 400

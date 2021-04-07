@@ -1,21 +1,29 @@
 #!/usr/bin/env python3
-#!/usr/bin/env python3
 
 import socket
 from consts import SignalConsts as SIG
+
+# import PySimpleGUI as gui
 
 IP = '127.0.0.1'
 PORT = 8888
 
 
 class Handler:
-    # informs user that username is taken and prompts him to try again
-    def usernameTaken(self, *ignore): # does not accept arguments, but doesn't crash if given any.
+    """
+    This class contains functions to handle signals, and the signals dict that acts as a switch-case that calls them.
+    """
+
+    def username_taken(self, *ignore): # does not accept arguments, but doesn't crash if given any.
+        """
+        Informs user that username is taken and prompts him to enter a new one, pre database.
+        method could be function (no self as argument).
+        """
         print("That username is already taken. please enter a new one.")
         login()
 
     signals = {
-        SIG.USERNAME_TAKEN : usernameTaken
+        SIG.USERNAME_TAKEN : username_taken
     }
 
 def handleSignal(signal, *args):

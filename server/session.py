@@ -18,19 +18,21 @@ class Session():
     # adds user to session
     def addUser(self, user):
        self.users.append(user)
-       user.session = self
 
     # disconnect user
     def removeUser(self, user):
         self.users.remove(user)
-    
+
     def run(self):
         pass
 
     def close(self): # send apropriate disconnect messages to users
-        pass
+        for user in self.users:
+            user.send(SIG.SESSION_LEFT, "The Session was closed by the host")
 
-    
+        del self.current
+
+
 
 
 

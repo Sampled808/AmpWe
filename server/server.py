@@ -5,7 +5,7 @@ from session import Session
 from user import User
 
 from SignalConsts import SignalConsts as SIG
-import signal
+from mysignal import Handler
 #import threading
 
 """
@@ -47,24 +47,28 @@ def recieve(conn, length): # add try except?, make it handle headers/signals?
 
 def tryLogin(conn, users):
     name = ""
+    mlen = None
     try:
-        mlen = recieve(conn, 1)
+        try:
+            mlen = recieve(conn, 1)
+        except:
+            return
         if not mlen:
             return
         elif type(mlen) is not int:
-            conn.sendSignal(SIG.MSGLEN_EXPECTED) # add handler on user end
+            conn.send(str(SIG.MSGLEN_EXPECTED).encode()) # add handler on user end
             conn.close()
         
         elif int(mlen) < 3: # name length between 3 and 9
             print("bad length") # debug
-            conn.sendSignal(SIG.BAD_NAME_LENGTH)
+            conn.send(str(SIG.BAD_NAME_LENGTH).encode())
         
         else: 
             print("listening for name")
             name = recieve(conn, mlen) 
 
     except Exception as e:
-        print(e)
+        print("trylogin"e)
     if not name:
         return
     elif name not in users: # make sure there is no other user with that name
@@ -74,7 +78,6 @@ def tryLogin(conn, users):
         return user
     else:
         conn.send(str(SIG.USERNAME_TAKEN).encode())
-        conn.close()
         print("name", name, "already taken") # Debug
         return
 
@@ -84,8 +87,8 @@ signal numbers are in SignalConsts.py
 """
 
 signals = {
-        SIG.DISCONNECT : signal.disconnect,
-        SIG.SESSION_START : signal.sessionStart
+        SIG.DISCONNECT : Handler.disconnect,
+        SIG.SESSION_START : Handler.sessionStart
 }
 
 def handleSignal(user, signal, users, sessions):
@@ -129,6 +132,7 @@ def main(serverSocket):
             u = tryLogin(u, users)
             if u:
                 users[u.name]=u
+                anon.remove(u.socket)
 
 
 
@@ -140,3 +144,6 @@ if __name__ == "__main__":
         
         serverSocket.close()
         raise e
+
+    else:
+        serverSocket.close()

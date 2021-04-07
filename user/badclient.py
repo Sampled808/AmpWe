@@ -3,18 +3,27 @@
 import socket
 from consts import SignalConsts as SIG
 
+# import PySimpleGUI as gui
+
 IP = '127.0.0.1'
 PORT = 8888
 
 
 class Handler:
-    # informs user that username is taken and prompts him to try again
-    def usernameTaken(self, *ignore): # does not accept arguments, but doesn't crash if given any.
+    """
+    This class contains functions to handle signals, and the signals dict that acts as a switch-case that calls them.
+    """
+
+    def username_taken(self, *ignore): # does not accept arguments, but doesn't crash if given any.
+        """
+        Informs user that username is taken and prompts him to enter a new one, pre database.
+        method could be function (no self as argument).
+        """
         print("That username is already taken. please enter a new one.")
         login()
 
     signals = {
-        SIG.USERNAME_TAKEN : usernameTaken
+        SIG.USERNAME_TAKEN : username_taken
     }
 
 def handleSignal(signal, *args):
@@ -27,11 +36,11 @@ soc = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 def send(msg):
     # add checks to see that message is legal (min/max length of name etc)
     #
-    soc.send(str(len(msg)).encode('UTF-8'))
-    soc.send(msg.encode('UTF-8'))
+    # soc.send(str(len(msg)).encode())
+    soc.send(msg.encode())
 
 def recieve(length):
-    sig = soc.recv(length).decode('UTF-8')
+    sig = soc.recv(length).decode()
     print("recieved", sig)
     if sig.isdigit():
         return int(sig) # maybe call handleSignal() from here?
@@ -42,7 +51,7 @@ def recieve(length):
 def connect(name):
     try:
         print("messaging server")
-        send(name)
+        send(str(888) + name)
         print("sent", name)
         return recieve(3)
     except ConnectionRefusedError:
